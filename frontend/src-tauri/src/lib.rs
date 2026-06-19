@@ -54,6 +54,7 @@ pub mod summary;
 pub mod tray;
 pub mod utils;
 pub mod whisper_engine;
+pub mod http_api;
 
 use audio::{list_audio_devices, AudioDevice, trigger_audio_permission};
 use log::{error as log_error, info as log_info};
@@ -448,6 +449,17 @@ pub fn run() {
                     Err(e) => {
                         log::error!("Failed to initialize notification manager: {}", e);
                     }
+                }
+            });
+
+            // Shared app handle for the optional HTTP API (Codex addition)
+            let http_state: http_api::SharedHttpState = std::sync::Arc::new(tokio::sync::Mutex::new(Some(_app.handle().clone())));
+
+            // Start the local HTTP API server for programmatic audio import
+            let http_state_for_server = http_state.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = http_api::start_http_server(http_state_for_server).await {
+                    log::error!("Failed to start HTTP API server: {}", e);
                 }
             });
 
